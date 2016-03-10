@@ -196,9 +196,9 @@ Now the information is almost ready. We only need to set up a default index for 
 _Tip_: The first time you see the dashboard, pay attention to the time frame displayed, sometimes it is set up to show the last 15 minutes and you may not have anything to be shown.
 
 Enjoy them!:
-* http://localhost:5601/app/kibana#/dashboard/BugsMozilla__bugzilla_https:__bugs.documentfoundation.org_enrich
-* http://localhost:5601/app/kibana#/dashboard/Gerrit-Activity__gerrit_gerrit.libreoffice.org_enrich
-* http://localhost:5601/app/kibana#/dashboard/Git-Activity__git_tdf_enrich
+* [http://localhost:5601/app/kibana#/dashboard/BugsMozilla__bugzilla_https:__bugs.documentfoundation.org_enrich](http://localhost:5601/app/kibana#/dashboard/BugsMozilla__bugzilla_https:__bugs.documentfoundation.org_enrich)
+* [http://localhost:5601/app/kibana#/dashboard/Gerrit-Activity__gerrit_gerrit.libreoffice.org_enrich](http://localhost:5601/app/kibana#/dashboard/Gerrit-Activity__gerrit_gerrit.libreoffice.org_enrich)
+* [http://localhost:5601/app/kibana#/dashboard/Git-Activity__git_tdf_enrich](http://localhost:5601/app/kibana#/dashboard/Git-Activity__git_tdf_enrich)
 
 ### Metadashboard
 
