@@ -188,9 +188,9 @@ Now the information is almost ready. We only need to set up a default index for 
 
 * Visit this link: http://localhost:5601/app/kibana#/dashboard/BugsMozilla__bugzilla_https:__bugs.documentfoundation.org_enrich
 * Click on the left on the Index named gerrit_gerrit.libreoffice.org_enrich (you could use any of the three we just created)
-(/img/screenshot01e.png)
+![Image of Kibana](https://raw.githubusercontent.com/grimoirelab/use_cases/master/documentfoundation/img/screenshot01e.png)
 * Click on the green star to make it the default index
-(/img/screenshot02e.png)
+![Image of Kibana](https://raw.githubusercontent.com/grimoirelab/use_cases/master/documentfoundation/img/screenshot02e.png)
 * And .. now we are ready to start playing with Kibana.
 
 _Tip_: The first time you see the dashboard, pay attention to the time frame displayed, sometimes it is set up to show the last 15 minutes and you may not have anything to be shown.
