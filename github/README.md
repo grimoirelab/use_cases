@@ -27,6 +27,7 @@ Install perceval, from GrimoireLab git repo
 ```
 (gitlab) $ git clone https://github.com/grimoirelab/perceval.git
 (gitlab) $ cd perceval
+(gitlab) $ git checkout fosdem16
 (gitlab) $ python3 setup.py install
 (gitlab) $ cd ..
 ```
