@@ -22,7 +22,7 @@ Install dependencies
 (gitlab) $ pip install six
 ```
 
-Install perceval, from GrimoireLab git repo
+Install perceval, tag fosdem16, from GrimoireLab git repo
 
 ```
 (gitlab) $ git clone https://github.com/grimoirelab/perceval.git
