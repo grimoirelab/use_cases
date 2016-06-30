@@ -12,12 +12,12 @@ If you want to share your **Grimoire Lab use case**, just follow the [Contributi
 
 # Issues
 
-If you find any issue with these use cases, feel free to [submit an issue](issues/new)
+If you find any issue with these use cases, feel free to [submit an issue](https://github.com/grimoirelab/use_cases/issues/new)
 
 ```
-___________________________
-< We <3 libre/open software >
- ---------------------------
+_______________________________
+| We :heart: libre/open software |
+-------------------------------
         \   ^__^
          \  (oo)\_______
             (__)\       )\/\
