@@ -4,6 +4,7 @@ These are instructions to extract information from some cases of software develo
 
 * [Setting up a dashboard for a single GitHub repository](github/README.md) (git, issues, pull requests)
 * [Setting up a dashboard for some repositories from The Document Foundation](documentfoundation/README.md)
+* [Analysis of the Xen code review process](xen-code-review/README.md) (_under development_)
 
 
 ```
