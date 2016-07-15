@@ -4,6 +4,6 @@ Since GrimoireLab uses [Kibana](https://www.elastic.co/products/kibana) for visu
 
 ## How to share your GrimoireLab dashboard
 
-To share a dashboard, click the `Share` button [Share button icon](imgs/share-dashboard.png) to display the Sharing panel.
+To share a dashboard, click the `Share` button ![Share button icon](imgs/share-dashboard.png) to display the Sharing panel.
 
-[Sharing panel](imgs/sharing-panel.png)
+![Sharing panel](imgs/sharing-panel.png)
