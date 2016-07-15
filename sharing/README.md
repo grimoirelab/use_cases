@@ -13,3 +13,5 @@ Click the `Copy to Clipboard` button ![Copy link](imgs/share-link.png) to copy t
 To embed it, click the `Copy to Clipboard` button ![Copy link](imgs/share-link.png) to copy the embed HTML in `Embed this dashboard` to paste it in the html source where you want to embed it.
 
 Click the `Generate short URL` button ![Generate short URL button](imgs/share-short-link.png) to create a shortened URL for sharing or embedding.
+
+See an [example of an embedded dashboard](http://grimoirelab.github.io/use_cases/#sharing).
