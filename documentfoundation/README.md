@@ -215,3 +215,141 @@ curl -XPOST "http://elasticsearch:9200/.kibana/metadashboard/main" -d'
 ```
 
 and now visit http://localhost:5602/ and click on the links above.
+
+## 8. Upgrading to version 0.11
+
+This section covers updating the tools and the dashboards to the latest stable version.
+
+In case of installing everything from scratch the work detailed here will follow the section 3 of the installation document. After everything is installed a default index shoul be set up as it is explained in the section 7.2.
+
+### 8.1 Upgrading python tools
+
+Inside the gelk container:
+
+```
+root@vm167:~# docker exec -i -t containers_gelk_1 env TERM=xterm /bin/bash
+```
+
+* Upgrade the data retrieving library, perceval:
+
+```
+bitergia@df91a66b6a17:~/perceval$ git pull
+bitergia@df91a66b6a17:~/perceval$ sudo python3 setup.py install
+
+```
+
+* Upgrade the data retriving and enrichment tool, GrimoireELK:
+
+
+```
+bitergia@df91a66b6a17:~$ cd GrimoireELK
+bitergia@df91a66b6a17:~/GrimoireELK$ git pull
+
+```
+
+* Upgrade the config for the script that orchestate all (loop.sh) configuring new indexes:
+
+```
+bitergia@df91a66b6a17:~$ vi retrieval_scripts/loop.sh
+GIT_INDEX="git_new"
+GERRIT_INDEX="gerrit_new"
+BUGZILLA_INDEX="bugzilla_new"
+
+```
+
+* Start the script to start filling the new indexes (raw and enriched):
+
+
+```
+bitergia@df91a66b6a17:~$ retrieval_scripts/loop.sh
+
+```
+
+### Upgrading the panels
+
+First we need to import the new panels, take into account that this process will fail if any other dashboard with the same name exists.
+
+* Bugzilla
+
+for
+```
+bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/bugzilla-organizations-projects.json
+bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/bugzilla_backlog-organizations-projects.json
+
+```
+
+* Git
+
+
+```
+bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/git_demographics-organizations-projects.json
+
+```
+* Gerrit
+
+```
+bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/gerrit-organizations-projects.json
+bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/gerrit-backlog-organizations-projects.json
+bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/gerrit_delays-organizations.json
+
+```
+
+### Update/Create aliases for the panels
+
+* Bugzilla
+
+
+```
+root@vm167:~# curl -XPOST "http://localhost:9200/_aliases" -d'
+{
+    "actions" : [
+        { "add" : { "index" : "bugzilla_new_enrich", "alias" : "bugzilla" }
+        }
+    ]
+}'
+
+```
+
+* Git
+
+
+```
+root@vm167:~# curl -XPOST "http://localhost:9200/_aliases" -d'
+{
+    "actions" : [
+        { "add" : { "index" : "git_new_enrich", "alias" : "git_enrich" }
+        }
+    ]
+}'
+
+```
+* Gerrit
+
+```
+curl -XPOST "http://localhost:9200/_aliases" -d'
+{
+    "actions" : [
+        { "add" : { "index" : "gerrit_new_enrich", "alias" : "gerrit_enrich" }
+        }
+    ]
+}'
+
+```
+
+
+### Update/Create the Tabs for the panels
+
+
+```
+root@vm167:~# curl -s -X POST "localhost:9200/.kibana/metadashboard/main" -d'
+{
+"Bugzilla":"Issues",
+"Bugzilla Backlog":"Issues-Backlog",
+"Git":"Git-Activity",
+"Git Demographics":"Git-Demographics",
+"Gerrit":"Gerrit",
+"Gerrit Backlog":"Gerrit-Backlog",
+"Gerrit Delays":"Gerrit-Delays"
+}'
+
+```
