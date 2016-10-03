@@ -63,7 +63,7 @@ Now you can play with the data using Kibana.
 
 **Using dashboard templates**
 
-If you wanna try a pre-configured dashboard, download [this .json template]().
+If you wanna try a pre-configured dashboard, download [this .json template](git-dashboard-template.json).
 
 Open it in a text editor and search and replace `template` by `symfony` or whatever `{name}` you have used in `git_{name}_enrich` index you have created..
 
