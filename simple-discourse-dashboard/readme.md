@@ -69,4 +69,7 @@ Open it in a text editor and search and replace `template` by whatever `{name}` 
 
 Save it as a new `.json` file, and import the file in Kibana using the `Import` option in the Settings/Objects tab
 
-This will create a new set of visualizations and dashboard parametrized for the index you have created
+This will create a new set of visualizations and dashboard parametrized for the index you have created:
+![Discourse dashboard](discourse-dashboard.jpg)
+
+Play with it, break it, improve it ...
