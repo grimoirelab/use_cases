@@ -10,346 +10,255 @@ This brief document explains how to deploy the Grimoire Open Development Analyti
 
 ## 2. Requirements
 
-* The host machine should be a GNU/Linux box with at least: git, ssh, docker(>=1.5) and docker-compose (>= 1.5)
+* The host machine should be a GNU/Linux box with at least: nginx, docker(>=1.5) and docker-compose (>= 1.5)
 * You must have a gerrit account in gerrit.libreoffice.org with your ssh public key added to it.
 * 50 GB hard disk free space for git repositories.
 * Chrome/Chromium is the web browser recommended for performance.
 
-## 3. Install the Grimore docker container
+## 3. Install the docker containers
 
-The installation of the docker container is pretty straightforward:
-
-* Install [docker](https://docs.docker.com/engine/installation/) and [docker-compose](https://docs.docker.com/compose/install/) in your host machine
-* Create a user with login _gelk_ and add it to the _docker_ group
-* Add _gelk_ user to docker group
-<pre>
-root@dellx:~# adduser --disabled-password gelk
-root@dellx:~# adduser gelk docker
-</pre>
-* Login as _gelk_ user
-<pre>
-gelk@dellx:~$ id
-uid=1002(gelk) gid=1002(gelk) grupos=1002(gelk),132(docker)
-</pre>
-* Create a directory "/home/gelk/devel"
-<pre>
-gelk@dellx:~$ mkdir ~/devel
-</pre>
-* Clone GrimoireELK
-<pre>
-gelk@dellx:~$ git clone https://github.com/grimoirelab/GrimoireELK.git devel/GrimoireELK
-</pre>
-* Create ElasticSearch data dir for persistence::
-<pre>
-gelk@dellx:~$ mkdir -p ~/Docker/data/elasticsearch/
-</pre>
-* Start BiDEK docker compose:
-<pre>
-gelk@dellx:~$ DATA_DOCKER=~/Docker/data docker-compose -f devel/GrimoireELK/docker/compose/bidek.yml up
-Starting compose_redis_1
-Starting compose_elasticsearch_1
-Starting compose_kibiter_1
-Starting compose_kibiter-edit_1
-Starting compose_mariadbdata_1
-Starting compose_mariadb_1
-Starting compose_gelk_1
-</pre>
-
-All the logs from all the containers will be printed in this console, so open a new one to start working with the platform.
-
-## 4. Retrieve TDF data sources
-
-Enter the docker gelk container:
-
-<pre>
-gelk@dellx:~$ docker exec -t -i compose_gelk_1 env TERM=xterm /bin/bash
-</pre>
-
-Now, we will start with the data retrieval. One tip before going on, for testing purpose you can add the "--from-date"  paramater to the command "p2o.py", it will allow you to download just a slice of the data. For instance, from January 1st 2016 you should include: `--from-date "2016-01-01"`
-
-### 4.1 Bugzilla
-
-This process takes around 11 hours to finish. It is recommended to execute it inside a screen/tmux.
-
+Before deploying the container in charge of running the Bitergia stack you'll need the ones below:
 ```
-bitergia@a27769af72e3:~$ cd GrimoireELK/utils/
-bitergia@89a865f18523:~/GrimoireELK/utils$ ./p2o.py -e http://elasticsearch:9200 -g  bugzilla  https://bugs.documentfoundation.org > ~/TDF-bugzilla.log 2>&1
+root@vm167:/docker/containers# cat docker-compose.yml |grep image
+  image: mariadb:10.0
+  image: elasticsearch:2.2
+  image: bitergia/kibiter:4.4.1-public
+  image: bitergia/kibiter:4.4.1
 ```
 
-To test the process, you can get the bugs since March 2016:
-
-<pre>
-bitergia@a27769af72e3:~/GrimoireELK/utils$ ./p2o.py -e http://elasticsearch:9200 -g  bugzilla  https://bugs.documentfoundation.org --from-date "2016-03-01"
-</pre>
-
-Once the process is finished you can check the number of bugs downloaded in the log file or using the Elastic Search database with the following command:
-
-<pre>
-bitergia@a27769af72e3:~/GrimoireELK/utils$ curl -s http://elasticsearch:9200/bugzilla_https:__bugs.documentfoundation.org/_search | python -m json.tool | grep '"total": '
-</pre>
-
-### 4.2 Gerrit
-
-First you need an account for the code review plataform at [gerrit.libreoffice.org](gerrit.libreoffice.org). Ensure your account has a [public SSH key](https://gerrit.libreoffice.org/#/settings/ssh-keys) and the typical user name. Before copying and pasting the content below, replace GERRIT_USER with your user name.
-
-Next step is to copy you SSH public key to the docker instance. In our case, we have it in the host machine (which is 172.17.42.1) for the account "acs".
-
-<pre>
-bitergia@a27769af72e3:~$ scp -r acs@172.17.42.1:.ssh ~/
-bitergia@a27769af72e3:~$ eval `ssh-agent -s`
-bitergia@a27769af72e3:~$ ssh-add ~/.ssh/id_rsa
-</pre>
-
-At this point, your public key is both copied to the container and set up in gerrit.libreoffice.org.
-
-In order to check that the gerrit user config is working, execute the command (remember to replace GERRIT_USER with your username):
-
-<pre>
-bitergia@a27769af72e3:~/GrimoireELK/utils$ ssh -p 29418 GERRIT_USER@gerrit.libreoffice.org gerrit  version
-gerrit version 2.11.7
-</pre>
-
-Time to start retrieving code reviews. Use the commands below (again, with you gerrit account):
-
-<pre>
-bitergia@89a865f18523:~/GrimoireELK/utils$ ./p2o.py -e http://elasticsearch:9200 -g gerrit --user GERRIT_USER --url gerrit.libreoffice.org > ~/TDF-gerrit-all.log 2>&1
-</pre>
-
-Once the process finishes you can check the number of reviews downloaded in the log file and again using the Elastic Search database with this command:
-
-<pre>
-bitergia@a27769af72e3:~/GrimoireELK/utils$ curl -s http://elasticsearch:9200/gerrit_gerrit.libreoffice.org/_search | python -m json.tool | grep '"total": '
-</pre>
-
-### 4.3 Git:
-
-You will need your gerrit user account configured as explained in the previous Gerrit section. Don't underestimate the space, data will need around 50 GB of free space to clone all git repositories to be analyzed.
-
-Start the Git data retrieval with the following command (remeber to replace the GERRIT_USER with your gerrit user name):
-<pre>
-bitergia@89a865f18523:~/GrimoireELK/utils$ ssh -p 29418 GERRIT_USER@gerrit.libreoffice.org gerrit ls-projects | awk '{print "./p2o.py -e http://elasticsearch:9200 --index git_TDF -g git git://gerrit.libreoffice.org/"$1}' | sh > ~/TDF-git-all.log 2>&1
-</pre>
-
-_Tip_: For testing purposes, you may want to get only the commits produced in 2016 with a command like this one:
-<pre>
-ssh -p 29418 lcanas@gerrit.libreoffice.org gerrit ls-projects | awk '{print "./p2o.py -e http://elasticsearch:9200 --index git_TDF -g git git://gerrit.libreoffice.org/"$1" --from-date \"2016-01-01\""}'
-</pre>
-
-Once the process finish you can check the number of bugs downloaded in the log file and also from Elastic Search, with the command:
-
-<pre>
-bitergia@a27769af72e3:~/GrimoireELK/utils$ curl -s http://elasticsearch:9200/git_tdf/_search | python -m json.tool | grep '"total": '
-</pre>
-
-## 5. Updating TDF data sources
-
-The update process of the data sources uses the same commands shown above. Our recommendation is to change the output log files so you can analyze them later. An initial approach to have periodic updates is to use linux crontab to schedule them. Next versions of the product will include an scheduler.
-
-## 6. Index enrichment
-
-Before showing the data on the Kibana dashboards, the raw index created above should be enriched.
-
-The commands to enrich bugzilla and gerrit are the same but with the option "--enrich_only". For git the command is also the same, but only applied to the global "git_TDF" index.
-
-<pre>
-bitergia@89a865f18523:~/GrimoireELK/utils$ ./p2o.py -e http://elasticsearch:9200 -g --enrich_only bugzilla  https://bugs.documentfoundation.org > ~/TDF-bugzilla-enrich.log 2>&1
-bitergia@89a865f18523:~/GrimoireELK/utils$ ./p2o.py -e http://elasticsearch:9200 -g --enrich_only gerrit --user GERRIT_USER --url gerrit.libreoffice.org > ~/TDF-gerrit-all-enrich.log 2>&1
-bitergia@89a865f18523:~/GrimoireELK/utils$ ./p2o.py -e http://elasticsearch:9200 -g --enrich_only --index git_TDF git '' > ~/TDF-git-all-enrich.log 2>&1
-</pre>
-
-## 7. Kibana dashboards creation
-
-### 7.1 Dashboards templates import
-
-Each data source has its own dashboard template, in order to import them into Kibana, execute the following commands:
-
-<pre>
-bitergia@a27769af72e3:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../dashboards/git-activity.json
-bitergia@a27769af72e3:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../dashboards/gerrit-activity.json
-bitergia@a27769af72e3:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../dashboards/bugzilla-testing.json
-bitergia@a27769af72e3:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --list
-http://elasticsearch:9200/.kibana/dashboard/_search?size=10000
-Git-Activity
-Gerrit-Activity
-BugsMozilla
-</pre>
-
-### 7.2 Dashboards creation
-
-We are getting closer. Now we'll use "e2k.py" to let Kibana knows about the data:
+The Mordred container links two of the listed above and needs some data persistency. We want the host to share:
+* the configuration directory
+* the logs directory
+* the cache used by the data collector AKA Perceval
+* the SSH keys needed to collect data from the Gerrit server (we'll need a public key already set up to access gerrit because it does use ssh as authentication)
 
 ```
-bitergia@a27769af72e3:~/GrimoireELK/utils$ ./e2k.py -e http://elasticsearch:9200 -i git_tdf_enrich -d Git-Activity
-bitergia@a27769af72e3:~/GrimoireELK/utils$ ./e2k.py -e http://elasticsearch:9200 -i gerrit_gerrit.libreoffice.org_enrich -d Gerrit-Activity
-bitergia@a27769af72e3:~/GrimoireELK/utils$ ./e2k.py -e http://elasticsearch:9200 -i bugzilla_https:__bugs.documentfoundation.org_enrich -d BugsMozilla
+root@vm167:/docker/mordred# cat docker-compose.yml 
+mordred:
+  #restart: "always"
+  image: bitergia/mordred:latest
+  volumes:
+    - /docker/mordred:/home/bitergia/conf
+    - /docker/logs:/home/bitergia/logs
+    - /docker/storage/tdf/perceval-cache:/home/bitergia/.perceval
+    - /docker/storage/tdf/perceval-ssh:/home/bitergia/.ssh
+  external_links:
+    - containers_mariadb_1:mariadb
+    - containers_elasticsearch_1:elasticsearch
 ```
 
-Now the information is almost ready. We only need to set up a default index for Kibana.
+## 4. Set up the dashboard generator
 
-* Visit this link: http://localhost:5601/app/kibana#/dashboard/BugsMozilla__bugzilla_https:__bugs.documentfoundation.org_enrich
-* Click on the left on the Index named gerrit_gerrit.libreoffice.org_enrich (you could use any of the three we just created)
-![Image of Kibana](https://raw.githubusercontent.com/grimoirelab/use_cases/master/documentfoundation/img/screenshot01e.png)
-* Click on the green star to make it the default index
-![Image of Kibana](https://raw.githubusercontent.com/grimoirelab/use_cases/master/documentfoundation/img/screenshot02e.png)
-* And .. now we are ready to start playing with Kibana.
+Mordred (one of the bad guys in the Arthurian legend) is in charge of the configuration and execution of the different components. Have a look at its documentation because we'll get to the point in this section (https://github.com/Bitergia/mordred/blob/master/docker/README.md )
 
-_Tip_: The first time you see the dashboard, pay attention to the time frame displayed, sometimes it is set up to show the last 15 minutes and you may not have anything to be shown.
+### 4.1 setup.cfg
 
-Enjoy them!:
-* [http://localhost:5601/app/kibana#/dashboard/BugsMozilla__bugzilla_https:__bugs.documentfoundation.org_enrich](http://localhost:5601/app/kibana#/dashboard/BugsMozilla__bugzilla_https:__bugs.documentfoundation.org_enrich)
-* [http://localhost:5601/app/kibana#/dashboard/Gerrit-Activity__gerrit_gerrit.libreoffice.org_enrich](http://localhost:5601/app/kibana#/dashboard/Gerrit-Activity__gerrit_gerrit.libreoffice.org_enrich)
-* [http://localhost:5601/app/kibana#/dashboard/Git-Activity__git_tdf_enrich](http://localhost:5601/app/kibana#/dashboard/Git-Activity__git_tdf_enrich)
-
-### Metadashboard
-
-There is one way to have the different dashboards linked from a Kibana instance, if you want to get that you'll have to execute the commands below which add some links:
+This is the file you need to start storing data into a local elasticsearch for the data sources Git, Gerrit and Bugzilla. The project file is named 'projects.json' and is one of the files "mounted" using the docker volume.
 
 ```
-bitergia@a27769af72e3:~/GrimoireELK/utils$
-curl -XPOST "http://elasticsearch:9200/.kibana/metadashboard/main" -d'
+[general]
+short_name = tdf
+update = true
+min_update_delay = 600
+debug = true
+logs_dir = /home/bitergia/logs
+# yyyy-mm-dd
+from_date = 
+
+[projects]
+projects_file = /home/bitergia/conf/projects.json
+
+[es_collection]
+url = http://elasticsearch:9200
+
+[es_enrichment]                                                                                                          
+url = http://elasticsearch:9200                                                                                          
+autorefresh = false                                                                                                      
+studies = true                                                                                                           
+                                                                                                                         
+[sortinghat]                                                                                                             
+host = mariadb                                                                                                           
+user = root                                                                                                              
+password =                                                                                                               
+database = tdf_sh                                                                                                        
+load_orgs = true                                                                                                         
+orgs_file = /home/bitergia/conf/orgs_file                                                                                
+identities_file = /home/bitergia/conf/sh-gitdm-libreoffice.json                                                          
+autoprofile = gitdm:libreoffice, git                                                                                     
+matching = email-name                                                                                                    
+sleep_for = 86400                                                                                                        
+bots_names =                                                                                                             
+                                                                                                                         
+[phases]                                                                                                                 
+collection = true                                                                                                        
+identities = true                                                                                                        
+enrichment = true                                                                                                        
+panels = true
+
+[git]                                                                                                                    
+raw_index = git_170123                                                                                                   
+enriched_index = git_170123_enriched_170123                                                                              
+                                                                                                                         
+[bugzilla]
+raw_index = bugzilla_new
+enriched_index = bugzilla_new_enriched_161130
+backend-user = owlbot@bitergia.com
+backend-password = *********
+
+[gerrit]
+raw_index = gerrit_170123
+enriched_index = gerrit_170123_enriched_170123
+user = tdfbot
+```
+### 4.2 requirements.cfg
+
+The latest version available at the moment of writting this is named 'catwoman.beta'. See Mordred's documentation for more info about releases and upgrades.
+
+```
+root@vm167:/docker/mordred# cat requirements.cfg 
+#!/bin/bash                                                                                                              
+                                                                                                                         
+RELEASE='catwoman.beta' 
+```
+
+### 4.3 projects.json
+
+The project definition and the name of the different data sources as are understood by Perceval (https://github.com/grimoirelab/perceval#usage)
+```
 {
-    "Bugzilla":"BugsMozilla__bugzilla_https:__bugs.documentfoundation.org_enrich",
-    "Git":"Git-Activity__git_tdf_enrich",
-    "Gerrit":"Gerrit-Activity__gerrit_gerrit.libreoffice.org_enrich"
-}'
-```
-
-and now visit http://localhost:5602/ and click on the links above.
-
-## 8. Upgrading to version 0.11
-
-This section covers updating the tools and the dashboards to the latest stable version.
-
-In case of installing everything from scratch the work detailed here will follow the section 3 of the installation document. After everything is installed a default index shoul be set up as it is explained in the section 7.2.
-
-### 8.1 Upgrading python tools
-
-Inside the gelk container:
-
-```
-root@vm167:~# docker exec -i -t containers_gelk_1 env TERM=xterm /bin/bash
-```
-
-* Upgrade the data retrieving library, perceval:
-
-```
-bitergia@df91a66b6a17:~/perceval$ git pull
-bitergia@df91a66b6a17:~/perceval$ sudo python3 setup.py install
-
-```
-
-* Upgrade the data retriving and enrichment tool, GrimoireELK:
-
-
-```
-bitergia@df91a66b6a17:~$ cd GrimoireELK
-bitergia@df91a66b6a17:~/GrimoireELK$ git pull
-
-```
-
-* Upgrade the config for the script that orchestate all (loop.sh) configuring new indexes:
-
-```
-bitergia@df91a66b6a17:~$ vi retrieval_scripts/loop.sh
-GIT_INDEX="git_new"
-GERRIT_INDEX="gerrit_new"
-BUGZILLA_INDEX="bugzilla_new"
-
-```
-
-* Start the script to start filling the new indexes (raw and enriched):
-
-
-```
-bitergia@df91a66b6a17:~$ retrieval_scripts/loop.sh
-
-```
-
-### Upgrading the panels
-
-First we need to import the new panels, take into account that this process will fail if any other dashboard with the same name exists.
-
-* Bugzilla
-
-for
-```
-bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/bugzilla-organizations-projects.json
-bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/bugzilla_backlog-organizations-projects.json
-
-```
-
-* Git
-
-
-```
-bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/git_demographics-organizations-projects.json
-
-```
-* Gerrit
-
-```
-bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/gerrit-organizations-projects.json
-bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/gerrit-backlog-organizations-projects.json
-bitergia@df91a66b6a17:~/GrimoireELK/utils$ ./kidash.py -e http://elasticsearch:9200 --import ../../panels/dashboards/gerrit_delays-organizations.json
-
-```
-
-### Update/Create aliases for the panels
-
-* Bugzilla
-
-
-```
-root@vm167:~# curl -XPOST "http://localhost:9200/_aliases" -d'
-{
-    "actions" : [
-        { "add" : { "index" : "bugzilla_new_enrich", "alias" : "bugzilla" }
+    "TheDocumentFoundation": {
+        "bugzilla": [
+            "https://bugs.documentfoundation.org/"
+        ], 
+        "git": [
+            "git://gerrit.libreoffice.org/All-Users", 
+            "git://gerrit.libreoffice.org/benchmark", 
+            "git://gerrit.libreoffice.org/bibisect-macosx-64-5.0", 
+            "git://gerrit.libreoffice.org/bibisect-macosx-64-5.1", 
+            "git://gerrit.libreoffice.org/bibisect-macosx-64-5.2", 
+            "git://gerrit.libreoffice.org/bibisect-win32-5.0", 
+            "git://gerrit.libreoffice.org/bibisect-win32-5.1", 
+            "git://gerrit.libreoffice.org/bibisect-win32-5.2", 
+            "git://gerrit.libreoffice.org/binfilter", 
+            "git://gerrit.libreoffice.org/bugzilla", 
+            "git://gerrit.libreoffice.org/buildbot", 
+            "git://gerrit.libreoffice.org/core", 
+            "git://gerrit.libreoffice.org/cppcheck-reports", 
+            "git://gerrit.libreoffice.org/cppunit", 
+            "git://gerrit.libreoffice.org/dcount", 
+            "git://gerrit.libreoffice.org/dev-tools", 
+            "git://gerrit.libreoffice.org/devcentral", 
+            "git://gerrit.libreoffice.org/dictionaries", 
+            "git://gerrit.libreoffice.org/gerrit-etc", 
+            "git://gerrit.libreoffice.org/gnu-make-lo", 
+            "git://gerrit.libreoffice.org/help", 
+            "git://gerrit.libreoffice.org/impress_remote", 
+            "git://gerrit.libreoffice.org/libabw", 
+            "git://gerrit.libreoffice.org/libabw-test", 
+            "git://gerrit.libreoffice.org/libcdr", 
+            "git://gerrit.libreoffice.org/libcdr-test", 
+            "git://gerrit.libreoffice.org/libetonyek", 
+            "git://gerrit.libreoffice.org/libetonyek-test", 
+            "git://gerrit.libreoffice.org/libexttextcat", 
+            "git://gerrit.libreoffice.org/libfreehand", 
+            "git://gerrit.libreoffice.org/libfreehand-test", 
+            "git://gerrit.libreoffice.org/libgltf", 
+            "git://gerrit.libreoffice.org/libmspub", 
+            "git://gerrit.libreoffice.org/libmspub-test", 
+            "git://gerrit.libreoffice.org/libpagemaker", 
+            "git://gerrit.libreoffice.org/libpagemaker-test", 
+            "git://gerrit.libreoffice.org/libvisio", 
+            "git://gerrit.libreoffice.org/libvisio-test", 
+            "git://gerrit.libreoffice.org/libzmf", 
+            "git://gerrit.libreoffice.org/libzmf-test", 
+            "git://gerrit.libreoffice.org/lode", 
+            "git://gerrit.libreoffice.org/mcm-database", 
+            "git://gerrit.libreoffice.org/mso-dumper", 
+            "git://gerrit.libreoffice.org/officeotron", 
+            "git://gerrit.libreoffice.org/online", 
+            "git://gerrit.libreoffice.org/original-artwork", 
+            "git://gerrit.libreoffice.org/perfdbmgr", 
+            "git://gerrit.libreoffice.org/sdk-examples", 
+            "git://gerrit.libreoffice.org/si-gui", 
+            "git://gerrit.libreoffice.org/tb3-django", 
+            "git://gerrit.libreoffice.org/tb3-docker", 
+            "git://gerrit.libreoffice.org/templates", 
+            "git://gerrit.libreoffice.org/test-files", 
+            "git://gerrit.libreoffice.org/translations", 
+            "git://gerrit.libreoffice.org/ui-test", 
+            "git://gerrit.libreoffice.org/voting"
+        ],
+        "gerrit": [
+            "gerrit.libreoffice.org"
+        ],
+        "meta": {
+            "title": "TheDocumentFoundation"
         }
-    ]
-}'
-
+    }
+}
 ```
 
-* Git
+### 4.4 Sorting hat files
 
+In the setup.cfg file above we define two inputs for the tool in charge of unifying the identities and affilation (its name is Sortinghat https://github.com/MetricsGrimoire/sortinghat). 
 
-```
-root@vm167:~# curl -XPOST "http://localhost:9200/_aliases" -d'
-{
-    "actions" : [
-        { "add" : { "index" : "git_new_enrich", "alias" : "git_enrich" }
-        }
-    ]
-}'
+Those are the files (both available in the container's directory /home/bitergia/conf) :
+* orgs_file: with a mapping between domains and company/organization names
+* sh-gitdm-libreoffice.json: with the information offered by gitdm exported to a sortinghat file
 
-```
-* Gerrit
+## 5. Execute it
+
+Start the docker containers and the result should be available while you grab a tea or coffee.
 
 ```
-curl -XPOST "http://localhost:9200/_aliases" -d'
-{
-    "actions" : [
-        { "add" : { "index" : "gerrit_new_enrich", "alias" : "gerrit_enrich" }
-        }
-    ]
-}'
-
+root@vm167:/docker/mordred# docker-compose up -d
+Creating mordred_mordred_1
 ```
 
+The log /tmp/mordred.log will say something like ..
+```
+root@vm167:/docker/mordred# tail -n4 /docker/logs/mordred.log 
+2017-01-24 19:20:21,563 - mordred - INFO - [gerrit] Gathering identities from raw data                                   
+2017-01-24 19:20:21,774 - mordred - INFO - [gerrit] enrichment starts                                                    
+2017-01-24 19:20:21,775 - mordred - DEBUG - [gerrit] enrichment starts for gerrit.libreoffice.org                        
+2017-01-24 19:20:28,157 - mordred - INFO - [gerrit] enrichment finished in 00:00:06
+```
 
-### Update/Create the Tabs for the panels
+## 6. Make it available to your friends!
 
+As soon as you ElasticSearch starts to have data, you'll need to make Kibiter available to the world. You can use a simple nginx configuration like the one below
 
 ```
-root@vm167:~# curl -s -X POST "localhost:9200/.kibana/metadashboard/main" -d'
-{
-"Bugzilla":"Issues",
-"Bugzilla Backlog":"Issues-Backlog",
-"Git":"Git-Activity",
-"Git Demographics":"Git-Demographics",
-"Gerrit":"Gerrit",
-"Gerrit Backlog":"Gerrit-Backlog",
-"Gerrit Delays":"Gerrit-Delays"
-}'
-
+server {                                                                                                                                                                                          
+        listen 443;                                                                                                                                                                          
+        server_name vm167.documentfoundation.org;                                                                                                                                                 
+                                                                                                                                                                                                  
+        ssl    on;                                                                                                                                                                                
+        ssl_certificate    /etc/nginx/ssl/nginx.crt;                                                                                                                                              
+        ssl_certificate_key    /etc/nginx/ssl/nginx.key;                                                                                                                                          
+                                                                                                                                                                                                  
+        rewrite ^/$ /app/kibana#/dashboard/Overview permanent;                                                                                                                                    
+                                                                                                                                                                                                  
+        location / {                                                                                                                                                                              
+                proxy_pass http://127.0.0.1:5601/;                                                                                                                                                
+                proxy_redirect http://127.0.0.1:5601/ /;                                                                                                                                          
+                proxy_http_version 1.1;                                                                                                                                                           
+                proxy_set_header Upgrade $http_upgrade;                                                                                                                                           
+                proxy_set_header Connection 'upgrade';                                                                                                                                            
+                proxy_set_header Host $host;                                                                                                                                                      
+                proxy_cache_bypass $http_upgrade;                                                                                                                                                 
+        }                                                                                                                                                                                         
+                                                                                                                                                                                                  
+        location /edit/ {                                                                                                                                                                         
+                auth_basic "Edition mode - Bitergia dashboard for TDF";                                                                                                                           
+                auth_basic_user_file /home/gelk/docker/containers/dashboard-password;                                                                                                             
+                        proxy_pass http://127.0.0.1:5602/;                                                                                                                                        
+                proxy_redirect http://127.0.0.1:5602/ /edit/;                                                                                                                                     
+                proxy_http_version 1.1;                                                                                                                                                           
+                proxy_set_header Upgrade $http_upgrade;                                                                                                                                           
+                proxy_set_header Connection 'upgrade';                                                                                                                                            
+                proxy_set_header Host $host;                                                                                      
+                proxy_cache_bypass $http_upgrade;                                                                                                                                                 
+        }  
+}
 ```
